@@ -94,7 +94,15 @@
 							<artifactSet>
 							</artifactSet>
 							<outputFile>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar</outputFile>
+							     <archive>
+          <manifest>
+            <addClasspath>true</addClasspath>
+            <classpathPrefix>lib/</classpathPrefix>
+            <mainClass>com.vertex.HttpVerticle</mainClass>
+          </manifest>
+        </archive>
 						</configuration>
+						      <!-- Build an executable JAR -->
 					</execution>
 				</executions>
 			</plugin>
