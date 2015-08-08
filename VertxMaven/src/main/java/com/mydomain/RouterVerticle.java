@@ -40,17 +40,23 @@ import com.mysocial.model.UserDTO;
 public class RouterVerticle extends AbstractVerticle {
 	@Override
 	public void start(Future<Void> startFuture) throws Exception {
+		
 		HttpServer server = vertx.createHttpServer();
 
 		Router router = Router.router(vertx);
 
 		router.route().handler(CookieHandler.create());
+		
 		router.route().handler(
 				SessionHandler.create(LocalSessionStore.create(vertx)));
 		AuthProvider ap = new MyAuthProvier();
+		
 		router.route().handler(UserSessionHandler.create(ap));
 
 		AuthHandler basicAuthHandler = BasicAuthHandler.create(ap);
+		
+		//Send http://localhost:8080/private  as POST and without body 
+		//you will get Unauthorized
 
 		router.route("/private/*").handler(basicAuthHandler);
 		router.route("/private/*").handler(new Handler<RoutingContext>() {
@@ -168,17 +174,21 @@ class UserLoader implements Handler<RoutingContext> {
 		// This handler will be called for every request
 		HttpServerResponse response = routingContext.response();
 		String id = routingContext.request().getParam("id");
+		System.out.println("ID is " + id);
 
-		response.putHeader("content-type", "application/json");
+		
 		Datastore dataStore = ServicesFactory.getMongoDB();
 		ObjectId oid = null;
 		try {
 			oid = new ObjectId(id);
 		} catch (Exception e) {// Ignore format errors
+			System.out.println("Exception occurred as " + e);
+			//e.printStackTrace();
 		}
 		List<User> users = dataStore.createQuery(User.class).field("id")
 				.equal(oid).asList();
 		if (users.size() != 0) {
+			response.putHeader("content-type", "application/json");
 			UserDTO dto = new UserDTO().fillFromModel(users.get(0));
 			ObjectMapper mapper = new ObjectMapper();
 			JsonNode node = mapper.valueToTree(dto);

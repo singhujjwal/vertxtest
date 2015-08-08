@@ -28,6 +28,7 @@ public class HttpServerVerticle extends AbstractVerticle {
 					Map<String,Object> dataMap = new HashMap<>();
 					dataMap.put("buffer", buffer.toString("UTF-8"));
 					JsonObject obj = new JsonObject(dataMap);
+					System.out.println("Ujjwal going to publish " + obj.toString());
 					vertx.eventBus().publish("userChannel", obj);
 				});
 			}

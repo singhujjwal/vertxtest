@@ -8,10 +8,16 @@ import io.vertx.core.VertxOptions;
 
 public class VertxTest {
 
+	//Send a request as 
+	//localhost:9080?type=user
+	//With json body {"hello":"World!!"}
+	//from postman as a POST request
 	public static void main(String[] args) throws Exception {
 		// VertxOptions options = new VertxOptions().setWorkerPoolSize(10);
 		System.out.println("Thread1: "+ Thread.currentThread().getId());
+		
 		Vertx vertx = Vertx.vertx();// options);
+		
 		vertx.deployVerticle(
 				"com.mydomain.MyVerticle",
 				res -> {
@@ -22,19 +28,20 @@ public class VertxTest {
 						System.out.println("Deployment failed!");
 					}
 				});
+		
 		vertx.deployVerticle(new HttpServerVerticle());
 		vertx.deployVerticle(new HttpProcessor());
 		DeploymentOptions options = new DeploymentOptions().setInstances(10);
 		vertx.deployVerticle("com.mydomain.RouterVerticle", options);
-		Thread.sleep(3000);
-		vertx.deployVerticle("com.mydomain.MyVerticle2",
-				new Handler<AsyncResult<String>>() {
-					@Override
-					public void handle(AsyncResult<String> stringAsyncResult) {
-						System.out.println("Thread3: "+ Thread.currentThread().getId());
-						System.out.println("Verticle2 deployment complete");
-					}
-				});
+//		Thread.sleep(3000);
+//		vertx.deployVerticle("com.mydomain.MyVerticle2",
+//				new Handler<AsyncResult<String>>() {
+//					@Override
+//					public void handle(AsyncResult<String> stringAsyncResult) {
+//						System.out.println("Thread3: "+ Thread.currentThread().getId());
+//						System.out.println("Verticle2 deployment complete");
+//					}
+//				});
 		System.out.println("Deployment fired");
 	}
 }
