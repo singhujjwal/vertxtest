@@ -69,8 +69,10 @@ public class RouterVerticle extends AbstractVerticle {
 
 		router.get("/services/users/:id").handler(new UserLoader());
 		router.post("/services/users").handler(new UserPersister());
+		
+		router.post("/Services/rest/user/register/").handler(new UserPersister());
 
-		server.requestHandler(router::accept).listen(8080);
+		server.requestHandler(router::accept).listen(8090);
 		System.out.println("Thread Router Start: "
 				+ Thread.currentThread().getId());
 		System.out.println("STARTED ROUTER");
