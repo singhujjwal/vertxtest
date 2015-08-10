@@ -69,7 +69,7 @@ public class RouterVerticle extends AbstractVerticle {
 		});
 
 		router.get("/services/users/:id").handler(new UserLoader());
-		router.post("/services/users").handler(new UserPersister());
+		//router.post("/services/users").handler(new UserPersister());
 		
 		router.post("/Services/rest/user/register/").handler(new UserPersister());
 		
