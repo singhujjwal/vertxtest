@@ -15,6 +15,7 @@ import io.vertx.ext.web.handler.AuthHandler;
 import io.vertx.ext.web.handler.BasicAuthHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.SessionHandler;
+import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.ext.web.handler.UserSessionHandler;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 
@@ -71,8 +72,12 @@ public class RouterVerticle extends AbstractVerticle {
 		router.post("/services/users").handler(new UserPersister());
 		
 		router.post("/Services/rest/user/register/").handler(new UserPersister());
-
-		server.requestHandler(router::accept).listen(8090);
+		
+		router.route("/*").handler(StaticHandler.create("webroot").setCachingEnabled(false));
+		//Add handler for static files
+		//router.route().handler(StaticHandler.create("webroot"));
+		
+		server.requestHandler(router::accept).listen(8080);
 		System.out.println("Thread Router Start: "
 				+ Thread.currentThread().getId());
 		System.out.println("STARTED ROUTER");
