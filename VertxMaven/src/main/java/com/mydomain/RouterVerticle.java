@@ -73,7 +73,7 @@ public class RouterVerticle extends AbstractVerticle {
 		
 		router.post("/Services/rest/user/register/").handler(new UserPersister());
 		
-		router.route("/*").handler(StaticHandler.create("webroot").setCachingEnabled(false));
+		router.route().handler(StaticHandler.create().setCachingEnabled(false));
 		//Add handler for static files
 		//router.route().handler(StaticHandler.create("webroot"));
 		
