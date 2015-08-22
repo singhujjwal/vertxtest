@@ -1,5 +1,31 @@
 package com.mydomain;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.bson.types.ObjectId;
+import org.mongodb.morphia.Datastore;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import org.w3c.dom.Comment;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mydomain.UserLoader.AuthenticateUser;
+import com.mydomain.UserLoader.BlogList;
+import com.mydomain.UserLoader.BlogPersister;
+import com.mydomain.UserLoader.CommentPersister;
+import com.mydomain.infra.ServicesFactory;
+import com.mysocial.model.User;
+import com.mysocial.model.UserDTO;
+
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -11,6 +37,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.AuthHandler;
 import io.vertx.ext.web.handler.BasicAuthHandler;
 import io.vertx.ext.web.handler.CookieHandler;
@@ -18,25 +45,6 @@ import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.ext.web.handler.UserSessionHandler;
 import io.vertx.ext.web.sstore.LocalSessionStore;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.bson.types.ObjectId;
-import org.mongodb.morphia.Datastore;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mydomain.infra.ServicesFactory;
-import com.mysocial.model.User;
-import com.mysocial.model.UserDTO;
 
 public class RouterVerticle extends AbstractVerticle {
 	@Override
@@ -68,7 +76,7 @@ public class RouterVerticle extends AbstractVerticle {
 			}
 		});
 
-		router.get("/services/users/:id").handler(new UserLoader());
+		//router.get("/services/users/:id").handler(new UserLoader());
 		//router.post("/services/users").handler(new UserPersister());
 		
 		router.post("/Services/rest/user/register/").handler(new UserPersister());
@@ -76,6 +84,14 @@ public class RouterVerticle extends AbstractVerticle {
 		router.route().handler(StaticHandler.create().setCachingEnabled(false));
 		//Add handler for static files
 		//router.route().handler(StaticHandler.create("webroot"));
+		
+		 router.get("/Services/rest/blogs").handler(new BlogList());
+	        router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());
+	        
+	        router.post("/Services/rest/user/register").handler(new UserPersister());
+	        router.post("/Services/rest/user/auth").handler(new AuthenticateUser());
+	        router.post("/Services/rest/blogs").handler(new BlogPersister());
+
 		
 		server.requestHandler(router::accept).listen(8080);
 		System.out.println("Thread Router Start: "
@@ -204,4 +220,206 @@ class UserLoader implements Handler<RoutingContext> {
 			response.setStatusCode(404).end("not found");
 		}
 	}
+	
+	class BlogPersister implements Handler<RoutingContext> {
+	    public void handle(RoutingContext routingContext) {
+	        System.out.println("Thread BlogPersister: "
+	                + Thread.currentThread().getId());
+	        HttpServerResponse response = routingContext.response();
+	        Session session = routingContext.session();
+	        routingContext.request().bodyHandler(new Handler<Buffer>() {
+	            public void handle(Buffer buf) {
+	                String json = buf.toString("UTF-8");
+	                ObjectMapper mapper = new ObjectMapper();
+	                Datastore dataStore = ServicesFactory.getMongoDB();
+	                BlogDTO dto = null;
+	                try {
+	                    dto = mapper.readValue(json, BlogDTO.class);
+	                    String userName = session.get("user");
+	                    if (userName == null || userName.equals(""))
+	                        userName = "ash";
+	                    User user = dataStore.createQuery(User.class).field("userName")
+	                                    .equal(userName).get();
+	                    dto.setUserFirst(user.getFirst());
+	                    dto.setUserLast(user.getLast());
+	                    dto.setUserId(user.getId().toString());
+	                    dto.setDate(new Date().getTime());
+	                } catch (IOException e) {
+	                    e.printStackTrace();
+	                }
+	                Blog blog = dto.toModel();
+	                dataStore.save(blog);
+	                /*List<Blog> blogs = user.getUserBlogs();
+	                blogs.add(blog);
+	                user.setUserBlogs(blogs);
+	                dataStore.save(user);*/
+	                response.setStatusCode(204).end("Blog saved !!");
+	            };
+	        });
+	    }
+	}
+
+	class CommentPersister implements Handler<RoutingContext> {
+	    public void handle(RoutingContext routingContext) {
+	        System.out.println("Thread CommentPersister: "
+	                + Thread.currentThread().getId());
+	        HttpServerResponse response = routingContext.response();
+	        String blogId = routingContext.request().getParam("id");
+	        Session session = routingContext.session();
+	        response.putHeader("content-type", "application/json");
+	        routingContext.request().bodyHandler(new Handler<Buffer>() {
+	            public void handle(Buffer buf) {
+	                String json = buf.toString("UTF-8");
+	                ObjectMapper mapper = new ObjectMapper();
+	                Datastore dataStore = ServicesFactory.getMongoDB();
+	                CommentDTO dto = null;
+	                try {
+	                    dto = mapper.readValue(json, CommentDTO.class);
+	                    String userName = session.get("user");
+	                    if (userName == null || userName.equals(""))
+	                        userName = "ash";
+	                    User user = dataStore.createQuery(User.class).field("userName")
+	                                    .equal(userName).get();
+	                    dto.setUserFirst(user.getFirst());
+	                    dto.setUserLast(user.getLast());
+	                    dto.setUserId(user.getId().toString());
+	                    dto.setDate(new Date().getTime());
+	                } catch (IOException e) {
+	                    e.printStackTrace();
+	                }
+	                Comment comment = dto.toModel();
+	                
+	                ObjectId oid = null;
+	                try {
+	                    oid = new ObjectId(blogId);
+	                } catch (Exception e) {// Ignore format errors
+	                }
+	                Blog blog = dataStore.createQuery(Blog.class).field("id")
+	                        .equal(oid).get();
+	                List<Comment> comments = blog.getComments();
+	                comments.add(comment);
+	                blog.setComments(comments);
+	                dataStore.save(blog);
+	                
+	                
+	                /*List<Blog> blogs = user.getUserBlogs();
+	                blogs.add(blog);
+	                user.setUserBlogs(blogs);
+	                dataStore.save(user);*/
+	                response.setStatusCode(204).end("Comment saved !!");
+	            };
+	        });
+	    }
+	}
+
+	class BlogList implements Handler<RoutingContext> {
+	    public void handle(RoutingContext routingContext) {
+	        System.out.println("Thread BlogList: "
+	                + Thread.currentThread().getId());
+	        HttpServerResponse response = routingContext.response();
+	        response.putHeader("content-type", "application/json");
+	        Datastore dataStore = ServicesFactory.getMongoDB();
+	        
+	        
+	        //For tag search
+	        String tagParam = routingContext.request().query();
+	        List<Blog> blogs = null;
+	        if (tagParam != null){
+	            String tagValue = tagParam.split("=")[1];
+	            blogs = dataStore.createQuery(Blog.class).field("tags").contains(tagValue).asList();
+	        }
+	        else{
+	            blogs = dataStore.createQuery(Blog.class).asList();
+	        }
+	        if (blogs.size() != 0)
+	        {
+	            List<BlogDTO> obj = new ArrayList<BlogDTO>();
+	            for (Blog b : blogs)
+	            {
+	                BlogDTO dto = new BlogDTO().fillFromModel(b);
+	                obj.add(dto);
+	            }
+	            
+	            ObjectMapper mapper = new ObjectMapper();
+	            try
+	            {
+	                response.end(mapper.writeValueAsString(obj));
+	            }
+	            catch (JsonProcessingException e)
+	            {
+	                // TODO Auto-generated catch block
+	                e.printStackTrace();
+	            }
+	        }
+	        else {
+	            response.setStatusCode(404).end("not found");
+	        }
+	    }
+	}
+
+	class AuthenticateUser implements Handler<RoutingContext> {
+	    public void handle(RoutingContext routingContext) {
+	        System.out.println("Thread AuthenticateUser: "
+	                + Thread.currentThread().getId());
+	        
+	        HttpServerResponse response = routingContext.response();
+	        Session session = routingContext.session();
+	        
+	        routingContext.request().bodyHandler(new Handler<Buffer>() {
+	            public void handle(Buffer buf)
+	            {
+	                Datastore dataStore = ServicesFactory.getMongoDB();
+	                String json = buf.toString("UTF-8");
+	                JsonObject jsonObj = new JsonObject(json);
+	                String user = jsonObj.getString("userName");
+	                String passwd = jsonObj.getString("password");
+	                List<User> users = dataStore.createQuery(User.class).field("userName")
+	                                .equal(user).asList();
+	                if (users.size() != 0)
+	                {
+	                    for (User u : users){
+	                        if (u.getPassword().equals(passwd)){
+	                            session.put("user", u.getUserName());
+	                            response.setStatusCode(204).end("User Authentication Success !!!");
+	                            break;
+	                        }
+	                    }
+	                }
+	                else
+	                {
+	                    response.setStatusCode(404).end("not found");
+	                }
+	            };
+	        });
+	    }
+	}
+
+	class BlogSearch implements Handler<RoutingContext> {
+	    public void handle(RoutingContext routingContext) {
+	        System.out.println("Thread BlogSearch: "
+	                + Thread.currentThread().getId());
+	        HttpServerResponse response = routingContext.response();
+	        String id = routingContext.request().getParam("id");
+
+	        response.putHeader("content-type", "application/json");
+	        Datastore dataStore = ServicesFactory.getMongoDB();
+	        ObjectId oid = null;
+	        try {
+	            oid = new ObjectId(id);
+	        } catch (Exception e) {// Ignore format errors
+	        }
+	        List<User> users = dataStore.createQuery(User.class).field("id")
+	                .equal(oid).asList();
+	        if (users.size() != 0) {
+	            UserDTO dto = new UserDTO().fillFromModel(users.get(0));
+	            ObjectMapper mapper = new ObjectMapper();
+	            JsonNode node = mapper.valueToTree(dto);
+	            response.end(node.toString());
+	        } else {
+	            response.setStatusCode(404).end("not found");
+	        }
+	    }
+	}
+
 }
+
