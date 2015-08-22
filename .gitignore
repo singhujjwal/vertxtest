@@ -2,7 +2,10 @@
 *.settings/*
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
-
+VertxMaven/.*
+.metadata
+RemoteSystemsTempFiles/*
+VertxMaven/*.log
 # Package Files #
 *.jar
 *.war
