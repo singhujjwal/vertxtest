@@ -23,6 +23,9 @@ import com.mydomain.UserLoader.BlogList;
 import com.mydomain.UserLoader.BlogPersister;
 import com.mydomain.UserLoader.CommentPersister;
 import com.mydomain.infra.ServicesFactory;
+import com.mysocial.model.Blog;
+import com.mysocial.model.BlogDTO;
+import com.mysocial.model.CommentDTO;
 import com.mysocial.model.User;
 import com.mysocial.model.UserDTO;
 
@@ -85,7 +88,7 @@ public class RouterVerticle extends AbstractVerticle {
 		//Add handler for static files
 		//router.route().handler(StaticHandler.create("webroot"));
 		
-		 router.get("/Services/rest/blogs").handler(new BlogList());
+		 router.get("/Services/rest/blogs").handler(new BlogLis());
 	        router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());
 	        
 	        router.post("/Services/rest/user/register").handler(new UserPersister());
@@ -287,7 +290,7 @@ class UserLoader implements Handler<RoutingContext> {
 	                } catch (IOException e) {
 	                    e.printStackTrace();
 	                }
-	                Comment comment = dto.toModel();
+	                Comment comment = (Comment) dto.toModel();
 	                
 	                ObjectId oid = null;
 	                try {
@@ -296,8 +299,8 @@ class UserLoader implements Handler<RoutingContext> {
 	                }
 	                Blog blog = dataStore.createQuery(Blog.class).field("id")
 	                        .equal(oid).get();
-	                List<Comment> comments = blog.getComments();
-	                comments.add(comment);
+	                List<com.mysocial.model.Comment> comments = blog.getComments();
+	                comments.add((com.mysocial.model.Comment) comment);
 	                blog.setComments(comments);
 	                dataStore.save(blog);
 	                
