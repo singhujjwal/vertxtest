@@ -1,0 +1,44 @@
+package com.mydomain.servlets;
+
+import java.io.IOException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.servlet.AsyncContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+
+@WebServlet(urlPatterns="/AsyncServlet", asyncSupported=true)
+public class AsyncServlet extends HttpServlet {
+	ExecutorService serv = Executors.newFixedThreadPool(5);
+	private AtomicInteger count = new AtomicInteger(0);
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		final AsyncContext context = request.startAsync();
+		int threadCount = count.incrementAndGet();
+		context.setTimeout(2000000);
+		System.out.println("Async started in thread: "+threadCount);
+		Runnable c = new Runnable() {
+			public void run() {
+				try {
+					Thread.sleep(1000000);
+				} catch (InterruptedException e) {}
+				context.getRequest().setAttribute("asyncdata","Hello World");
+				context.dispatch("/asyncdone.jsp");
+				context.dispatch();
+			}
+		};
+		serv.submit(c);
+		System.out.println("Servlet done: "+threadCount);
+	}
+
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// TODO Auto-generated method stub
+	}
+
+}

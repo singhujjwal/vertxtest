@@ -1,0 +1,20 @@
+<head>
+<title>Users</title>
+</head>
+
+<body>
+	<h1>Users List</h1>
+	{{> userList}}
+</body>
+
+<template name="userList">
+	<table>
+		{{#each users}}
+			{{> userTempl}}
+		{{/each}}
+	</table>	
+</template>
+
+<template name="userTempl">
+	<tr><td>{{name}}</td><td>{{age}}</td></tr>
+</template>
