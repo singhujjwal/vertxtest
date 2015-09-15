@@ -46,7 +46,6 @@ public class RouterVerticle extends AbstractVerticle {
 		HttpServer server = vertx.createHttpServer();
 		Router router = Router.router(vertx);
 		
-		router.route("/*").handler(StaticHandler.create("webroot").setCachingEnabled(false));
 		router.route().handler(CookieHandler.create());
 
 		router.route().handler(SessionHandler.create(LocalSessionStore.create(vertx)));
@@ -54,32 +53,38 @@ public class RouterVerticle extends AbstractVerticle {
 
 		router.route().handler(UserSessionHandler.create(ap));
 
-		AuthHandler basicAuthHandler = BasicAuthHandler.create(ap);
+		//AuthHandler basicAuthHandler = BasicAuthHandler.create(ap);
 
 		// Send http://localhost:8080/private as POST and without body
 		// you will get Unauthorized
 		
-		router.route("/private/*").handler(basicAuthHandler);
-		
-		router.route("/private/*").handler(new Handler<RoutingContext>() {
-			@Override
-			public void handle(RoutingContext rc) {
-				System.out.println("Handler: " + rc.user().principal());
-				rc.response().end("Done");
-			}
-		});
+//		router.route("/private/*").handler(basicAuthHandler);
+//		
+//		router.route("/private/*").handler(new Handler<RoutingContext>() {
+//			@Override
+//			public void handle(RoutingContext rc) {
+//				System.out.println("Handler: " + rc.user().principal());
+//				rc.response().end("Done");
+//			}
+//		});
 
 		router.get("/services/users/:id").handler(new UserLoader());
 		router.post("/services/users").handler(new UserPersister());
+		
+		router.get("/Services/rest/user/:id").handler(new UserLoader());
+		router.post("/services/users").handler(new UserPersister());
+		
 		router.post("/Services/rest/user/register/").handler(new UserPersister());
-
-
+		
+		
 		router.get("/Services/rest/blogs").handler(new BlogList());
+		
         router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());     
         router.post("/Services/rest/user/register").handler(new UserPersister());
         router.post("/Services/rest/user/auth").handler(new AuthenticateUser());
         router.post("/Services/rest/blogs").handler(new BlogPersister());
-
+		
+		router.route("/*").handler(StaticHandler.create("webroot").setCachingEnabled(false));
         server.requestHandler(router::accept).listen(8080);
         System.out.println("Thread Router Start: "
                 + Thread.currentThread().getId());

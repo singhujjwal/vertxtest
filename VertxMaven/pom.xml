@@ -6,7 +6,7 @@
 	<version>3.0.0</version>
 	<properties>
 		<!-- the main class -->
-		<main.class>com.mydomain.VertxTest</main.class>
+		<main.class>com.mydomain.RouterVerticle</main.class>
 	</properties>
 
 	<dependencies>

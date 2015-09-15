@@ -19,6 +19,7 @@ public class BlogList implements Handler<RoutingContext> {
 
 	@Override
 	public void handle(RoutingContext routingContext) {
+		
 		System.out.println("Thread BlogList: " + Thread.currentThread().getId());
 		HttpServerResponse response = routingContext.response();
 		response.putHeader("content-type", "application/json");

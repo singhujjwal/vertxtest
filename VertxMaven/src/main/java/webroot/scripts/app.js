@@ -59,93 +59,94 @@
 					$scope.blogs = data;
 					$scope.loading = false;
 				}).error(function(data, status, headers, config) {
+					alert("Failed to get the blogs");
 					$scope.loading = false;
 					$scope.error = status;
 				});
-		var ws=null;
-		$http.get('/Services/rest/user?signedIn=true').success(
-				function(data, status, headers, config) {
-					$scope.connectedUsers = data;
-					$scope.loading = false;
-					//Setup a websocket connection to server using current host
-					ws = $websocket.$new('ws://'+$location.host()+':'+$location.port()+'/Services/chat', ['binary', 'base64']); // instance of ngWebsocket, handled by $websocket service
-					$log.debug("Web socket established...");
-			        ws.$on('$open', function () {
-			            $log.debug('Socket is open');
-			        });
-			        
-			        ws.$on('$message', function(data){
-			        	 $log.debug('The websocket server has sent the following data:');
-			        	 $log.debug(data);
-			        	 $log.debug(data.messageType);
-			        	 if(data.messageType==="UserLogin"){
-			        		 //Add this user to list of users
-			        		 var found = false;
-			        		 for(var index in $scope.connectedUsers){
-			        			 if($scope.connectedUsers[index].id==data.messageObject.id){
-			        				 found=true;
-			        			 }
-			        		 }
-			        		 if(!found){
-			        			 $log.debug("Adding user to list: "+data.messageObject.first);
-			        			 $scope.connectedUsers.push(data.messageObject);
-			        			 $scope.$digest();
-			        		 }
-			        	 }else if(data.messageType==="chatMessage"){
-			        		 //Make sure chat window opensup
-			        		 $scope.showChat=true
-			        		 $log.debug("Updating chat message: ");
-			        		 $log.debug(data.messageObject);
-			        		 if($scope.chatMessages===undefined)
-			        			 $scope.chatMessages=[];
-			        		 $scope.chatMessages.push(data.messageObject);
-			        		 $log.debug("Chat Messages: ");
-			        		 $log.debug($scope.chatMessages);
-			        		 $scope.$digest();
-			        	 }
-			        });
-			        ws.$on('$close', function () {
-			            console.log('Web socket closed');
-			            ws.$close();
-			        });
-				}).error(function(data, status, headers, config) {
-					$scope.loading = false;
-					$scope.error = status;
-				});
-			$scope.tagSearch = function(){
-				$http.get('/Services/rest/blogs?tag='+$scope.searchTag).success(
-					function(data, status, headers, config) {
-						$scope.blogs = data;
-						$scope.loading = false;
-					}).error(function(data, status, headers, config) {
-						$scope.loading = false;
-						$scope.error = status;
-					});
-			};
-			$scope.submitComment = function(comment, blogId){
-				$log.debug(comment);
-				//var blogId = comment.blogId;
-				$http.post('/Services/rest/blogs/'+blogId+'/comments',comment).success(
-					function(data, status, headers, config) {
-						$scope.loading = false;
-						for(var index in $scope.blogs){
-							if($scope.blogs[index].id==blogId){
-								$log.debug("Pushing the added comment to list");
-								$scope.blogs[index].comments.push(comment);
-								break;
-							}
-						}
-					}).error(function(data, status, headers, config) {
-						$scope.loading = false;
-						$scope.error = status;
-					});
-			};
-		
-			$scope.sendMessage = function(chatMessage){
-				$log.debug("Sending "+chatMessage);
-				ws.$emit('chatMessage', chatMessage); // send a message to the websocket server
-				$scope.chatMessage="";
-			}
+//		var ws=null;
+//		$http.get('/Services/rest/user?signedIn=true').success(
+//				function(data, status, headers, config) {
+//					$scope.connectedUsers = data;
+//					$scope.loading = false;
+//					//Setup a websocket connection to server using current host
+//					ws = $websocket.$new('ws://'+$location.host()+':'+$location.port()+'/Services/chat', ['binary', 'base64']); // instance of ngWebsocket, handled by $websocket service
+//					$log.debug("Web socket established...");
+//			        ws.$on('$open', function () {
+//			            $log.debug('Socket is open');
+//			        });
+//			        
+//			        ws.$on('$message', function(data){
+//			        	 $log.debug('The websocket server has sent the following data:');
+//			        	 $log.debug(data);
+//			        	 $log.debug(data.messageType);
+//			        	 if(data.messageType==="UserLogin"){
+//			        		 //Add this user to list of users
+//			        		 var found = false;
+//			        		 for(var index in $scope.connectedUsers){
+//			        			 if($scope.connectedUsers[index].id==data.messageObject.id){
+//			        				 found=true;
+//			        			 }
+//			        		 }
+//			        		 if(!found){
+//			        			 $log.debug("Adding user to list: "+data.messageObject.first);
+//			        			 $scope.connectedUsers.push(data.messageObject);
+//			        			 $scope.$digest();
+//			        		 }
+//			        	 }else if(data.messageType==="chatMessage"){
+//			        		 //Make sure chat window opensup
+//			        		 $scope.showChat=true
+//			        		 $log.debug("Updating chat message: ");
+//			        		 $log.debug(data.messageObject);
+//			        		 if($scope.chatMessages===undefined)
+//			        			 $scope.chatMessages=[];
+//			        		 $scope.chatMessages.push(data.messageObject);
+//			        		 $log.debug("Chat Messages: ");
+//			        		 $log.debug($scope.chatMessages);
+//			        		 $scope.$digest();
+//			        	 }
+//			        });
+//			        ws.$on('$close', function () {
+//			            console.log('Web socket closed');
+//			            ws.$close();
+//			        });
+//				}).error(function(data, status, headers, config) {
+//					$scope.loading = false;
+//					$scope.error = status;
+//				});
+//			$scope.tagSearch = function(){
+//				$http.get('/Services/rest/blogs?tag='+$scope.searchTag).success(
+//					function(data, status, headers, config) {
+//						$scope.blogs = data;
+//						$scope.loading = false;
+//					}).error(function(data, status, headers, config) {
+//						$scope.loading = false;
+//						$scope.error = status;
+//					});
+//			};
+//			$scope.submitComment = function(comment, blogId){
+//				$log.debug(comment);
+//				//var blogId = comment.blogId;
+//				$http.post('/Services/rest/blogs/'+blogId+'/comments',comment).success(
+//					function(data, status, headers, config) {
+//						$scope.loading = false;
+//						for(var index in $scope.blogs){
+//							if($scope.blogs[index].id==blogId){
+//								$log.debug("Pushing the added comment to list");
+//								$scope.blogs[index].comments.push(comment);
+//								break;
+//							}
+//						}
+//					}).error(function(data, status, headers, config) {
+//						$scope.loading = false;
+//						$scope.error = status;
+//					});
+//			};
+//		
+//			$scope.sendMessage = function(chatMessage){
+//				$log.debug("Sending "+chatMessage);
+//				ws.$emit('chatMessage', chatMessage); // send a message to the websocket server
+//				$scope.chatMessage="";
+//			}
 	});
 	//------------------------------------------------------------------------------------------------------------------
 	// Controller for the login view and the registration screen
@@ -153,23 +154,23 @@
 	app.controller('LoginController', function($http, $log, $scope, $location,
 			$rootScope) {
 		var controller = this;
-		$scope.isLoadingCompanies = true;
-		$http.get('/Services/rest/company').success(
-				function(data, status, headers, config) {
-					$scope.companies = data;
-					$scope.isLoadingCompanies = false;
-				}).error(function(data, status, headers, config) {
-					$scope.isLoadingCompanies = false;
-					$scope.error = status;
-				});
+//		$scope.isLoadingCompanies = true;
+//		$http.get('/Services/rest/company').success(
+//				function(data, status, headers, config) {
+//					$scope.companies = data;
+//					$scope.isLoadingCompanies = false;
+//				}).error(function(data, status, headers, config) {
+//					$scope.isLoadingCompanies = false;
+//					$scope.error = status;
+//				});
 		$scope.login = function(user) {
 			$log.debug("Logging in user...");
 			$http.post("/Services/rest/user/auth", user).success(
 					function() {
 						$rootScope.loggedIn = true;
 						$location.path("/");
-						$("#login").hide();
-						$("#logout").show();
+						$("#login_div").hide();
+						$("#logout_div").html('<a href="logout">Logout</a>');
 					});
 		};
 		$scope.register = function() {
