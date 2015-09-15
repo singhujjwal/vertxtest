@@ -1,0 +1,415 @@
+OUTSIDE THE CLASS:
+
+interface MyIntf{
+	public int twoIntFunc(int x, int y);
+}
+interface MyIntf2{
+	public int func();
+}
+interface MyIntf3{
+	public void strFunc(String s);
+}
+
+------------------
+MyIntf m = (int x, int y) -> x + y;
+
+MyIntf m = new MyIntf(){
+	public int twoIntFunc(int x, int y){
+		return x+y;
+	}
+};
+
+public void someFunction(int x, Myintf y);
+
+someFunction(4, (x,y) -> x + y);
+
+someFunction(4, new MyIntf(){
+	public int twoIntFunc(int x, int y){
+		return x+y;
+	}
+});
+
+MyIntf2 n = () -> 42;
+
+MyIntf3 o = (String s) -> { System.out.println(s); };
+
+interface OneArg<A>{
+	void invoke(A arg) throws Exception;
+}
+class someClass{
+int x;
+someFunction(){
+	Thread t = new Thread(()->{
+		S.O.P("Something");
+	});
+	t.start();
+	
+	Class.forName("...");
+	Connection con = DriverManager.getConnection("....");
+	with(con,new OneArg() {
+		int x;
+		public void invoke(Connection con) {
+			Statement st = con.createStatement();
+			ResultSet rs = st.executeQuery("Select * from user");
+			this.x = 10;
+			while(rs.next()){
+				S.O.P(rs.getString("name"));
+			}
+		}
+	});
+	with(con,c->{
+		this.x = 10;
+		Statement st = c.createStatement();
+		ResultSet rs = st.executeQuery("Select * from user");
+		while(rs.next()){
+			S.O.P(rs.getString("name"));
+		}
+	});
+	
+}
+static void with(Connection con, OneArg<Connection> block) {
+	try {
+		block.invoke(con);
+	} finally {
+		if(con!=null)
+			try {
+				con.close();
+			} catch (SQLException e) {}
+	}
+}
+}
+
+-------------------
+Distributed System:
+--------------------------
+Create a jgroups multicast messaging system
+Create a maven project and setup these dependencies:
+<dependencies>
+	<dependency>
+		<groupId>org.jgroups</groupId>
+		<artifactId>jgroups</artifactId>
+		<version>3.6.3.Final</version>
+	</dependency>
+</dependencies>
+
+Create class ClusterNode extends ReceiverAdapter
+
+In constructor:
+System.setProperty("jgroups.bind_addr","127.0.0.1");
+System.setProperty("java.net.preferIPv4Stack","true");
+channel = new JChannel(); // use the default config, udp.xml
+channel.connect("ServiceNodesCluster");
+channel.setReceiver(this);
+
+in method sendMessage:
+Message m = new Message(null, null, message);
+channel.send(m);
+
+in method 
+public void receive(Message msg) {
+		System.out.println(channel.getAddressAsString() + " Received message: "
+				+ msg.getObject()+ " from host: "+msg.getSrc());
+}
+
+in main(){
+	c = new ClusterNode();
+	Thread.sleep(10000);
+	c.sendMessage();
+}
+
+Launch 3 or 4 processes of this program in 10 seconds and watch.
+------------------------------	
+
+Create a distributed system that stores transactions for an account in various nodes in memory
+It should have a remote interface.
+Implement this interface: public interface TransactionProcessor extends Remote{
+	public void transact(Integer account, Integer amount) throws Exception;
+	public Set<Integer> getAccounts() throws Exception;
+}
+
+Write an implementation class which will place the transaction either in the local server or on a 
+remote server depending on where it is placed
+Main method will look like this with RMI
+
+public static void main(String[] args) throws Exception {
+		System.out.println("Starting the transaction server...");
+		TransactionProcessorImpl impl = new TransactionProcessorImpl();
+		TransactionProcessor txpStub = (TransactionProcessor) UnicastRemoteObject
+				.exportObject(impl, 0);
+		Registry registry = LocateRegistry.getRegistry();
+		registry.rebind(args[0], txpStub);
+		System.out.println("txProcessor bound with: " + args[0]);
+	}
+
+To run this program, open a command prompt, change directory to project\bin folder
+Run: rmiregistry
+And then start the main method with arguments txp0, txp1, txp2 etc
+
+CLIENT CODE TO TEST:
+public static void main(String[] args) throws Exception{
+	Registry registry = LocateRegistry.getRegistry("localhost",1099);
+	TransactionProcessor proc = (TransactionProcessor)registry.lookup("txp0");
+	proc.transact(101, 1000);
+	TransactionProcessor proc1 = (TransactionProcessor)registry.lookup("txp1");
+	proc1.transact(101, 2000);
+	System.out.println(proc.getAccounts());
+	System.out.println(proc1.getAccounts());
+}
+---------------------
+Study the implementation class as below and transfer to ur project:
+public class TransactionProcessorImpl extends ReceiverAdapter implements
+		TransactionProcessor {
+	JChannel channel;
+	ConcurrentHashMap<Integer, Address> accountStorage = new ConcurrentHashMap<>();
+	ConcurrentHashMap<Integer, List<Integer>> transactions = new ConcurrentHashMap<>();
+
+	public TransactionProcessorImpl() throws Exception {
+		System.out.println(System.getProperty("jgroups.bind_addr"));
+		channel = new JChannel(); // use the default config, udp.xml
+		channel.connect("ServiceNodesCluster");
+		channel.setReceiver(this);
+	}
+
+	public synchronized void transact(Integer account, Integer amount)
+			throws Exception {
+		if (accountStorage.get(account) == null) {
+			System.out.println("New account creation: " + account);
+			Map<Integer, Address> accountLocation = new HashMap<>();
+			accountLocation.put(account, channel.getAddress());
+			Message msg = new Message(null, null, accountLocation);
+			channel.send(msg);
+			accountStorage.put(account, channel.getAddress());
+			// Now store it locally
+			if (transactions.get(account) == null) {
+				transactions.put(account, new ArrayList<>());
+			}
+			transactions.get(account).add(amount);
+			return;
+		}
+		if (accountStorage.get(account).equals(channel.getAddressAsString())) {
+			System.out.println("Account is here...");
+			// Account stored on this host record transaction
+			if (transactions.get(account) == null) {
+				transactions.put(account, new ArrayList<>());
+			}
+			transactions.get(account).add(amount);
+		} else {
+			// Account is else where.. send the transaction there
+			System.out.println("Account stored on: "
+					+ accountStorage.get(account));
+			Map<Integer, Integer> transaction = new HashMap<>();
+			transaction.put(account, amount);
+			System.out.println(channel.getAddress().getClass().getName());
+			Message msg = new Message(accountStorage.get(account), null,
+					transaction);
+			channel.send(msg);
+		}
+
+	}
+
+	public void receive(Message msg) {
+		System.out.println(channel.getAddressAsString() + " Received message: "
+				+ msg.getObject());
+		if (channel.getAddress().equals(msg.getSrc())) {
+			// Do not process self messages
+			return;
+		}
+		if (!(msg.getObject() instanceof Map)) {
+			return;
+		}
+		Map data = (Map) msg.getObject();
+		Integer account = (Integer) data.keySet().iterator().next();
+		if (data.get(account) instanceof Address) {
+			accountStorage
+					.putIfAbsent(account, (Address) data.get(account));
+		} else {
+			synchronized (transactions) {
+				if (transactions.get(account) == null) {
+					transactions.put(account, new ArrayList<>());
+				}
+			}
+			transactions.get(account).add((Integer) data.get(account));
+		}
+	}
+
+	@Override
+	public Set<Integer> getAccounts() throws Exception {
+		Set<Integer> retVal = new HashSet<>();
+		retVal.addAll(transactions.keySet());
+		return retVal;
+	}
+
+	public static void main(String[] args) throws Exception {
+		System.out.println("Starting the transaction server...");
+		TransactionProcessorImpl impl = new TransactionProcessorImpl();
+		TransactionProcessor txpStub = (TransactionProcessor) UnicastRemoteObject
+				.exportObject(impl, 0);
+		Registry registry = LocateRegistry.getRegistry();
+		registry.rebind(args[0], txpStub);
+		System.out.println("txProcessor bound with: " + args[0]);
+	}
+	
+}
+---------------------------------------
+Export the project as a runnable jar and launch 5 process instances using a program like below:
+
+
+class ProcessMonitor extends Thread {
+	Process p;
+
+	public ProcessMonitor(Process p) {
+		this.p = p;
+	}
+
+	public void run() {
+		try {
+			InputStream is = p.getInputStream();
+			InputStreamReader isr = new InputStreamReader(is);
+			LineNumberReader lnr = new LineNumberReader(isr);
+			String line = "";
+			while ((line = lnr.readLine()) != null) {
+				System.out.println(line);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+}
+
+public class ProcessController {
+	public static void main(String[] args) throws Exception {
+		Process[] processArr = new Process[5];
+		for (int i = 0; i < 5; i++) {
+			ProcessBuilder pb = new ProcessBuilder("java", "-Djgroups.bind_addr=192.168.0.101", "-Djava.net.preferIPv4Stack=true", "-cp",
+					"/Users/maruthir/Desktop/txprocessor.jar",
+					"com.mydomain.app.TransactionProcessorImpl", "txp" + i);
+			processArr[i] = pb.start();
+			Thread.sleep(2000);
+			new ProcessMonitor(processArr[i]).start();
+		}
+		System.out
+				.println("Launched the processes. Press any key to terminate the cluster");
+		System.in.read();
+		for (Process process : processArr) {
+			process.destroy();
+		}
+		System.out.println("Done");
+	}
+}
+
+Test it with high client load using a code like this:
+
+Registry registry = LocateRegistry.getRegistry("localhost",1099);
+		
+		Executor exec = Executors.newFixedThreadPool(5);
+		for(int i=0; i< 100; i++){
+			TransactionProcessor proc = (TransactionProcessor)registry.lookup("txp"+(i%5));
+			exec.execute(new Transactor(proc));
+		}
+		Thread.sleep(10000);
+		Set<Integer> allAccounts = new HashSet<>();
+		for(int i=0; i< 5;i++){
+			TransactionProcessor proc = (TransactionProcessor)registry.lookup("txp"+i);
+			Set<Integer> accounts = proc.getAccounts();
+			System.out.println(accounts);
+			for (Integer account : accounts) {
+				if(!allAccounts.add(account)){
+					System.out.println("Account duplicated: "+account);
+				}
+			}
+		}
+		System.out.println("Done");
+
+------------------------------
+Download zookeeper zip file and unzip.
+Create 3 copies of zookeeper
+in conf/zoo.cfg file of each copy edit to make sure they use different port numbers at the end
+
+dataDir=/Users/maruthir/Documents/Training/CMAD/zookeeper3/data
+
+clientPort=2181
+server.1=localhost:2887:3887
+server.2=localhost:2888:3888
+server.3=localhost:2889:3889
+
+cd to the bin folder and start zookeeper like below in 3 different command windows:
+./zkServer.sh start-foreground
+
+Open another command prompt and start the zookeeper client
+./zkCli.sh
+
+Try commands
+create -e /test somedata
+ls /
+quit
+
+-------------------------------
+Change code:
+in constructor:
+zk = new ZooKeeper("localhost:2181", 3000,
+				watchedEvent -> {
+					System.out.println("Watched event path: "
+							+ watchedEvent.getPath());
+					System.out.println("Watched event: " + watchedEvent);
+				});
+
+Add this method to the remote interface and the implementation:
+
+public synchronized void transactZookeeper(Integer account, Integer amount)
+			throws Exception {
+		Address addressOfAccount = channel.getAddress();
+		if (zk.exists("/" + account.toString(), false) == null) {
+			try {
+				zk.create(
+						"/" + account.toString(),
+						((UUID) channel.getAddress()).toStringLong().getBytes(),
+						ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+			} catch (KeeperException k) {
+				System.out.println("Error: " + k.getMessage());
+				// Some other node got hold of this first. So just use that node
+				// to send
+				byte[] addressBytes = zk.getData("/" + account.toString(),
+						false, null);
+				addressOfAccount = UUID.fromString(new String(addressBytes));
+			}
+		} else {
+			byte[] addressBytes = zk.getData("/" + account.toString(), false,
+					null);
+			addressOfAccount = UUID.fromString(new String(addressBytes));
+		}
+		if (addressOfAccount.equals(channel.getAddress())) {
+			// Now store it locally
+			if (transactions.get(account) == null) {
+				transactions.put(account, new ArrayList<>());
+			}
+			transactions.get(account).add(amount);
+			return;
+		} else {
+			// Send the transaction to the other server
+			System.out.println("Account stored on: " + addressOfAccount);
+			Map<Integer, Integer> transaction = new HashMap<>();
+			transaction.put(account, amount);
+			Message msg = new Message(addressOfAccount, null, transaction);
+			channel.send(msg);
+		}
+	}
+
+Test with the load test client
+----------------------------
+class Transactor implements Runnable{
+	TransactionProcessor proc;
+	Random rand;
+	public Transactor(TransactionProcessor tp) {
+		proc = tp;
+		rand = new Random();
+	}
+	public void run() {
+		try {
+			for(int i=0; i< 10; i++){
+				proc.transact(Math.abs(rand.nextInt() % 500), 100);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+}
