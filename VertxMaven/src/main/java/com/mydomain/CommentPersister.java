@@ -6,11 +6,11 @@ import java.util.List;
 
 import org.bson.types.ObjectId;
 import org.mongodb.morphia.Datastore;
-import org.w3c.dom.Comment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mydomain.infra.ServicesFactory;
 import com.mysocial.model.Blog;
+import com.mysocial.model.Comment;
 import com.mysocial.model.CommentDTO;
 import com.mysocial.model.User;
 
@@ -38,7 +38,7 @@ class CommentPersister implements Handler<RoutingContext> {
                     dto = mapper.readValue(json, CommentDTO.class);
                     String userName = session.get("user");
                     if (userName == null || userName.equals(""))
-                        userName = "ash";
+                        userName = "u";
                     User user = dataStore.createQuery(User.class).field("userName")
                                     .equal(userName).get();
                     dto.setUserFirst(user.getFirst());
@@ -61,6 +61,7 @@ class CommentPersister implements Handler<RoutingContext> {
                 comments.add((com.mysocial.model.Comment) comment);
                 blog.setComments(comments);
                 dataStore.save(blog);
+                System.out.println("Saved the comment");
                 
                 
                 /*List<Blog> blogs = user.getUserBlogs();

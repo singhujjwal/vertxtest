@@ -113,40 +113,40 @@
 //					$scope.loading = false;
 //					$scope.error = status;
 //				});
-//			$scope.tagSearch = function(){
-//				$http.get('/Services/rest/blogs?tag='+$scope.searchTag).success(
-//					function(data, status, headers, config) {
-//						$scope.blogs = data;
-//						$scope.loading = false;
-//					}).error(function(data, status, headers, config) {
-//						$scope.loading = false;
-//						$scope.error = status;
-//					});
-//			};
-//			$scope.submitComment = function(comment, blogId){
-//				$log.debug(comment);
-//				//var blogId = comment.blogId;
-//				$http.post('/Services/rest/blogs/'+blogId+'/comments',comment).success(
-//					function(data, status, headers, config) {
-//						$scope.loading = false;
-//						for(var index in $scope.blogs){
-//							if($scope.blogs[index].id==blogId){
-//								$log.debug("Pushing the added comment to list");
-//								$scope.blogs[index].comments.push(comment);
-//								break;
-//							}
-//						}
-//					}).error(function(data, status, headers, config) {
-//						$scope.loading = false;
-//						$scope.error = status;
-//					});
-//			};
-//		
-//			$scope.sendMessage = function(chatMessage){
-//				$log.debug("Sending "+chatMessage);
-//				ws.$emit('chatMessage', chatMessage); // send a message to the websocket server
-//				$scope.chatMessage="";
-//			}
+			$scope.tagSearch = function(){
+				$http.get('/Services/rest/blogs?tag='+$scope.searchTag).success(
+					function(data, status, headers, config) {
+						$scope.blogs = data;
+						$scope.loading = false;
+					}).error(function(data, status, headers, config) {
+						$scope.loading = false;
+						$scope.error = status;
+					});
+			};
+			$scope.submitComment = function(comment, blogId){
+				$log.debug(comment);
+				//var blogId = comment.blogId;
+				$http.post('/Services/rest/blogs/'+blogId+'/comments',comment).success(
+					function(data, status, headers, config) {
+						$scope.loading = false;
+						for(var index in $scope.blogs){
+							if($scope.blogs[index].id==blogId){
+								$log.debug("Pushing the added comment to list");
+								$scope.blogs[index].comments.push(comment);
+								break;
+							}
+						}
+					}).error(function(data, status, headers, config) {
+						$scope.loading = false;
+						$scope.error = status;
+					});
+			};
+		
+			$scope.sendMessage = function(chatMessage){
+				$log.debug("Sending "+chatMessage);
+				ws.$emit('chatMessage', chatMessage); // send a message to the websocket server
+				$scope.chatMessage="";
+			}
 	});
 	//------------------------------------------------------------------------------------------------------------------
 	// Controller for the login view and the registration screen
