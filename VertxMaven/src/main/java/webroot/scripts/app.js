@@ -168,6 +168,8 @@
 					function() {
 						$rootScope.loggedIn = true;
 						$location.path("/");
+						$("#login").hide();
+						$("#logout").show();
 					});
 		};
 		$scope.register = function() {
