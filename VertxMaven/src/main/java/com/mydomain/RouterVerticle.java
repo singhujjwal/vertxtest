@@ -1,7 +1,6 @@
 package com.mydomain;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,17 +24,13 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.AuthHandler;
-import io.vertx.ext.web.handler.BasicAuthHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
@@ -98,8 +93,8 @@ public class RouterVerticle extends AbstractVerticle {
 //			
 //		});
 
-//		router.get("/services/users/:id").handler(new UserLoader());
-//		router.post("/services/users").handler(new UserPersister());
+		router.get("/services/users/:id").handler(new UserLoader());
+		router.post("/services/users").handler(new UserPersister());
 		
 		
 		router.get("/Services/rest/user/:id").handler(new UserLoader());
@@ -122,7 +117,7 @@ public class RouterVerticle extends AbstractVerticle {
 		});
 		
 		
-//		
+//			
 //		router.get("/Services/rest/blogs").handler(new BlogList());
 //        router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());     
 //        router.post("/Services/rest/user/register").handler(new UserPersister());
