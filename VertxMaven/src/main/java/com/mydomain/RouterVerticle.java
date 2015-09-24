@@ -24,6 +24,7 @@ import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -34,6 +35,8 @@ import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.ext.web.handler.UserSessionHandler;
 import io.vertx.ext.web.sstore.LocalSessionStore;
+import scala.util.parsing.json.JSON;
+import scala.util.parsing.json.JSONObject;
 
 public class RouterVerticle extends AbstractVerticle {
 	
@@ -76,11 +79,19 @@ public class RouterVerticle extends AbstractVerticle {
 			//Setup handler to receive the data
 			serverWebSocket.handler( handler ->{
 				String message = new String(handler.getBytes());
-				System.out.println("message: "+message);
+				System.out.println("message: "+ message);
+				JsonObject json = new JsonObject(message);
+				JsonObject jsonToSend = new JsonObject();
+				
+				
+				jsonToSend.put("text", json.getString("data"));
+				jsonToSend.put("messageType", "chatMessage");
+				jsonToSend.put("sender", "okbye");
+				
 				//Now broadcast received message to all other clients
 				for(ServerWebSocket sock : allConnectedSockets){
 					System.out.println("Sending message to client...");
-					sock.writeFinalTextFrame(message);
+					sock.writeFinalTextFrame(jsonToSend.toString());
 				}
 			});
 			//Register handler to remove connection from list when connection is closed
@@ -126,24 +137,22 @@ public class RouterVerticle extends AbstractVerticle {
         
 	}
 	
-//	public static void sendNewUserInfo(User u) {
-//		for(ServerWebSocket sock : allConnectedSockets){
-//			System.out.println("Sending User to client...");
-//			JsonObject userInfoMsg = new JsonObject();
-//			JsonObject userInfo = new JsonObject();
-//			
-//			userInfo.put("first", u.getFirst());
-//			userInfo.put("last", u.getLast());
-//			userInfo.put("username", u.getUserName());
-//			/*ObjectMapper mapper = new ObjectMapper();
-//			JsonNode node = mapper.valueToTree(u);*/
-//			userInfoMsg.put("event", "UserLogin");
-//			userInfoMsg.put("messageObject", userInfo);
-//			System.out.println("New User msg: " + userInfoMsg.toString());
-//			sock.writeFinalTextFrame(userInfoMsg.toString());
-//			
-//		}
-//	}
+	public static void sendNewUserInfo(User u) {
+		for(ServerWebSocket sock : allConnectedSockets){
+			System.out.println("Sending User to client...");
+			JsonObject userInfoMsg = new JsonObject();
+			JsonObject userInfo = new JsonObject();
+			userInfo.put("first", u.getFirst());
+			userInfo.put("last", u.getLast());
+			userInfo.put("username", u.getUserName());
+			/*ObjectMapper mapper = new ObjectMapper();
+			JsonNode node = mapper.valueToTree(u);*/
+			userInfoMsg.put("messageType", "UserLogin");
+			userInfoMsg.put("messageObject", userInfo);
+			System.out.println("New User msg: " + userInfoMsg.toString());
+			sock.writeFinalTextFrame(userInfoMsg.toString());
+		}
+	}
 	
 	public static void main(String[] args)
     {

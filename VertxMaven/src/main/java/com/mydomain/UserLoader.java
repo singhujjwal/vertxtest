@@ -24,14 +24,18 @@ class UserLoader implements Handler<RoutingContext> {
 		// This handler will be called for every request
 		HttpServerResponse response = routingContext.response();
 		String id = routingContext.request().getParam("id");
+		Datastore dataStore = ServicesFactory.getMongoDB();
 		System.out.println("ID is " + id);
-		
 		//If signed in is being checked
 		if("signedIn".equalsIgnoreCase(id)){
 			Session session = routingContext.session();
 			String userName = session.get("user");
 			if(userName != null && !"".equalsIgnoreCase(userName.trim())){
 				System.out.println("User already logged in " + userName);
+				List<User> users = dataStore.createQuery(User.class).field("userName").equal(userName).asList();
+				if (users.size() != 0) {
+					RouterVerticle.sendNewUserInfo(users.get(0));
+				}
 				response.setStatusCode(200).end("Already Logged in");
 				return;
 			}else{
@@ -41,7 +45,6 @@ class UserLoader implements Handler<RoutingContext> {
 			}
 		} else {
 
-			Datastore dataStore = ServicesFactory.getMongoDB();
 			ObjectId oid = null;
 			try {
 				oid = new ObjectId(id);
@@ -56,6 +59,7 @@ class UserLoader implements Handler<RoutingContext> {
 				ObjectMapper mapper = new ObjectMapper();
 				JsonNode node = mapper.valueToTree(dto);
 				response.end(node.toString());
+				RouterVerticle.sendNewUserInfo(users.get(0));
 			} else {
 				response.setStatusCode(404).end("not found");
 			}

@@ -67,14 +67,12 @@
 		$http.get('/Services/rest/user/signedIn').success(
 				function(data, status, headers, config) {
 					console.log("In the success of signedin");
-						
 					$("#login_div").hide();
 					$("#logout_div").html('<a href="logout">Logout</a>');
-					
-					$scope.connectedUsers = data;
 					$scope.loading = false;
 					//Setup a websocket connection to server using current host
-					ws = $websocket.$new('ws://'+$location.host()+':'+$location.port()+'/Services/chat', ['binary', 'base64']); // instance of ngWebsocket, handled by $websocket service
+					ws = $websocket.$new('ws://'+$location.host()+':'+$location.port()+'/Services/chat'); 
+					// instance of ngWebsocket, handled by $websocket service
 					$log.debug("Web socket established...");
 			        ws.$on('$open', function () {
 			            $log.debug('Socket is open');
@@ -84,12 +82,16 @@
 			        	 $log.debug('The websocket server has sent the following data:');
 			        	 $log.debug(data);
 			        	 $log.debug(data.messageType);
+			        	 if($scope.connectedUsers===undefined)
+		        			 $scope.connectedUsers=[];
 			        	 if(data.messageType==="UserLogin"){
 			        		 //Add this user to list of users
 			        		 var found = false;
 			        		 for(var index in $scope.connectedUsers){
 			        			 if($scope.connectedUsers[index].id==data.messageObject.id){
 			        				 found=true;
+			        				 console.log("Found a user");
+			        				 console.log(data.messageObject.first);
 			        			 }
 			        		 }
 			        		 if(!found){
@@ -104,7 +106,7 @@
 			        		 $log.debug(data.messageObject);
 			        		 if($scope.chatMessages===undefined)
 			        			 $scope.chatMessages=[];
-			        		 $scope.chatMessages.push(data.messageObject);
+			        		 $scope.chatMessages.push(data);
 			        		 $log.debug("Chat Messages: ");
 			        		 $log.debug($scope.chatMessages);
 			        		 $scope.$digest();
