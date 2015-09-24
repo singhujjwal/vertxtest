@@ -32,8 +32,10 @@ class BlogPersister implements Handler<RoutingContext> {
                 try {
                     dto = mapper.readValue(json, BlogDTO.class);
                     String userName = session.get("user");
-                    if (userName == null || userName.equals(""))
-                        userName = "ash";
+                    if (userName == null || "".equalsIgnoreCase(userName)){
+                    	response.setStatusCode(404).end("Please sign in before blogging!!");
+                    	return;
+                    }
                     User user = dataStore.createQuery(User.class).field("userName")
                                     .equal(userName).get();
                     dto.setUserFirst(user.getFirst());

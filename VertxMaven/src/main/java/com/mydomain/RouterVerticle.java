@@ -2,9 +2,7 @@ package com.mydomain;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.bson.types.ObjectId;
 import org.mongodb.morphia.Datastore;
@@ -19,7 +17,6 @@ import com.mysocial.model.User;
 import com.mysocial.model.UserDTO;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -27,10 +24,11 @@ import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.ServerWebSocket;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.AuthHandler;
+import io.vertx.ext.web.handler.BasicAuthHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
@@ -55,43 +53,43 @@ public class RouterVerticle extends AbstractVerticle {
 
 		router.route().handler(UserSessionHandler.create(ap));
 
-		//AuthHandler basicAuthHandler = BasicAuthHandler.create(ap);
+		AuthHandler basicAuthHandler = BasicAuthHandler.create(ap);
 
 		// Send http://localhost:8080/private as POST and without body
 		// you will get Unauthorized
 		
-//		router.route("/private/*").handler(basicAuthHandler);
-//		
-//		router.route("/private/*").handler(new Handler<RoutingContext>() {
-//			@Override
-//			public void handle(RoutingContext rc) {
-//				System.out.println("Handler: " + rc.user().principal());
-//				rc.response().end("Done");
-//			}
-//		});
+		router.route("/private/*").handler(basicAuthHandler);
 		
-//		server = server.websocketHandler(serverWebSocket -> {
-//			//Got a new connection
-//			System.out.println("Connected: "+serverWebSocket.remoteAddress());
-//			//Store new connection in list
-//			allConnectedSockets.add(serverWebSocket);
-//			//Setup handler to receive the data
-//			serverWebSocket.handler( handler ->{
-//				String message = new String(handler.getBytes());
-//				System.out.println("message: "+message);
-//				//Now broadcast received message to all other clients
-//				for(ServerWebSocket sock : allConnectedSockets){
-//					System.out.println("Sending message to client...");
-//					sock.writeFinalTextFrame(message);
-//				}
-//			});
-//			//Register handler to remove connection from list when connection is closed
-//			serverWebSocket.closeHandler(handler->{
-//				System.out.println("Closing connection: " + serverWebSocket.remoteAddress());
-//				allConnectedSockets.remove(serverWebSocket);
-//			});
-//			
-//		});
+		router.route("/private/*").handler(new Handler<RoutingContext>() {
+			@Override
+			public void handle(RoutingContext rc) {
+				System.out.println("Handler: " + rc.user().principal());
+				rc.response().end("Done");
+			}
+		});
+		
+		server = server.websocketHandler(serverWebSocket -> {
+			//Got a new connection
+			System.out.println("Connected: "+serverWebSocket.remoteAddress());
+			//Store new connection in list
+			allConnectedSockets.add(serverWebSocket);
+			//Setup handler to receive the data
+			serverWebSocket.handler( handler ->{
+				String message = new String(handler.getBytes());
+				System.out.println("message: "+message);
+				//Now broadcast received message to all other clients
+				for(ServerWebSocket sock : allConnectedSockets){
+					System.out.println("Sending message to client...");
+					sock.writeFinalTextFrame(message);
+				}
+			});
+			//Register handler to remove connection from list when connection is closed
+			serverWebSocket.closeHandler(handler->{
+				System.out.println("Closing connection: " + serverWebSocket.remoteAddress());
+				allConnectedSockets.remove(serverWebSocket);
+			});
+			
+		});
 
 		router.get("/services/users/:id").handler(new UserLoader());
 		router.post("/services/users").handler(new UserPersister());
@@ -103,7 +101,6 @@ public class RouterVerticle extends AbstractVerticle {
 		
 		
 		router.get("/logout/").handler(routingContext -> {
-			
 			routingContext.session().destroy();
 			System.out.println("Destroyed the session");
 			HttpServerResponse response = routingContext.response();
@@ -116,13 +113,10 @@ public class RouterVerticle extends AbstractVerticle {
 			routingContext.response().end();
 		});
 		
-		
-//			
-//		router.get("/Services/rest/blogs").handler(new BlogList());
-//        router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());     
-//        router.post("/Services/rest/user/register").handler(new UserPersister());
-//        router.post("/Services/rest/blogs").handler(new BlogPersister());
-		
+		router.get("/Services/rest/blogs").handler(new BlogList());
+        router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());     
+        router.post("/Services/rest/user/register").handler(new UserPersister());
+        router.post("/Services/rest/blogs").handler(new BlogPersister());
 		router.route("/*").handler(StaticHandler.create("webroot").setCachingEnabled(false));
         server.requestHandler(router::accept).listen(8080);
         System.out.println("Thread Router Start: "
@@ -160,59 +154,6 @@ public class RouterVerticle extends AbstractVerticle {
 
 }
 
-class MyAuthProvier implements AuthProvider {
-
-	@Override
-	public void authenticate(JsonObject json,
-			Handler<AsyncResult<io.vertx.ext.auth.User>> handler) {
-		System.out.println("Authenticating users with: " + json);
-		
-		
-		AsyncResult<io.vertx.ext.auth.User> result = new AsyncResult<io.vertx.ext.auth.User>() {
-			
-			public boolean succeeded() {
-				return json.getString("username").equals("admin")
-						&& json.getString("password").equals("admin123");
-			}
-
-			public io.vertx.ext.auth.User result() {
-				return new io.vertx.ext.auth.User() {
-					public void setAuthProvider(AuthProvider provider) {
-						System.out
-								.println("Setting auth provider: " + provider);
-					}
-
-					public JsonObject principal() {
-						Map<String, Object> dataMap = new HashMap<>();
-						dataMap.put("buffer", json.getString("username"));
-						JsonObject obj = new JsonObject(dataMap);
-						return obj;
-					}
-
-					public io.vertx.ext.auth.User isAuthorised(String url,
-							Handler<AsyncResult<Boolean>> handler) {
-						System.out.println("Is authorized call: " + url);
-						return this;
-					}
-
-					public io.vertx.ext.auth.User clearCache() {
-						return null;
-					}
-				};
-			}
-
-			public boolean failed() {
-				return !(json.getString("username").equals("admin") && json
-						.getString("password").equals("admin123"));
-			}
-
-			public Throwable cause() {
-				return null;
-			}
-		};
-		handler.handle(result);
-	}
-}
 
 class GraphLoader implements Handler<RoutingContext> {
 	@Override
@@ -227,38 +168,6 @@ class GraphLoader implements Handler<RoutingContext> {
 	}
 }
 
-
-class UserLoader implements Handler<RoutingContext> {
-	public void handle(RoutingContext routingContext) {
-		System.out.println("Thread UserLoader: "
-				+ Thread.currentThread().getId());
-		// This handler will be called for every request
-		HttpServerResponse response = routingContext.response();
-		String id = routingContext.request().getParam("id");
-		System.out.println("ID is " + id);
-
-		
-		Datastore dataStore = ServicesFactory.getMongoDB();
-		ObjectId oid = null;
-		try {
-			oid = new ObjectId(id);
-		} catch (Exception e) {// Ignore format errors
-			System.out.println("Exception occurred as " + e);
-			//e.printStackTrace();
-		}
-		List<User> users = dataStore.createQuery(User.class).field("id")
-				.equal(oid).asList();
-		if (users.size() != 0) {
-			response.putHeader("content-type", "application/json");
-			UserDTO dto = new UserDTO().fillFromModel(users.get(0));
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode node = mapper.valueToTree(dto);
-			response.end(node.toString());
-		} else {
-			response.setStatusCode(404).end("not found");
-		}
-	}
-	
 	class BlogSearch implements Handler<RoutingContext> {
 	    public void handle(RoutingContext routingContext) {
 	        System.out.println("Thread BlogSearch: "
@@ -285,6 +194,4 @@ class UserLoader implements Handler<RoutingContext> {
 	        }
 	    }
 	}
-
-}
 

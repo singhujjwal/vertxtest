@@ -36,9 +36,13 @@ class CommentPersister implements Handler<RoutingContext> {
                 CommentDTO dto = null;
                 try {
                     dto = mapper.readValue(json, CommentDTO.class);
-                    String userName = session.get("user");
-                    if (userName == null || userName.equals(""))
-                        userName = "u";
+                    Session session = routingContext.session();
+        			String userName = session.get("user");
+        			if(userName == null || "".equalsIgnoreCase(userName)){
+        				System.out.println("No User already logged in " + userName);
+        				response.setStatusCode(404).end("Please login");
+        				return;
+        			}
                     User user = dataStore.createQuery(User.class).field("userName")
                                     .equal(userName).get();
                     dto.setUserFirst(user.getFirst());

@@ -65,9 +65,12 @@
 				});
 		var ws=null;
 		$http.get('/Services/rest/user/signedIn').success(
-				
 				function(data, status, headers, config) {
-					alert("success in getting into signedIn method");
+					console.log("In the success of signedin");
+						
+					$("#login_div").hide();
+					$("#logout_div").html('<a href="logout">Logout</a>');
+					
 					$scope.connectedUsers = data;
 					$scope.loading = false;
 					//Setup a websocket connection to server using current host
@@ -115,6 +118,7 @@
 					$scope.loading = false;
 					$scope.error = status;
 				});
+
 			$scope.tagSearch = function(){
 				$http.get('/Services/rest/blogs?tag='+$scope.searchTag).success(
 					function(data, status, headers, config) {
@@ -137,10 +141,12 @@
 								$scope.blogs[index].comments.push(comment);
 								break;
 							}
+							$location.path("/");
 						}
 					}).error(function(data, status, headers, config) {
 						$scope.loading = false;
 						$scope.error = status;
+						alert("Failed to comment, login first:");
 					});
 			};
 		
@@ -173,6 +179,9 @@
 						$location.path("/");
 						$("#login_div").hide();
 						$("#logout_div").html('<a href="logout">Logout</a>');
+					}).error(
+					function(){
+						alert("username and password did not match");
 					});
 		};
 		$scope.register = function() {
@@ -236,6 +245,9 @@
 							function() {
 								$log.debug("Saved blog...");
 								$location.path("/");
+							}).error(
+							function(){
+								alert("Failed to Save blogs");
 							});
 				};
 				$scope.cancel = function(blog){
