@@ -38,6 +38,7 @@ import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.AuthHandler;
 import io.vertx.ext.web.handler.BasicAuthHandler;
 import io.vertx.ext.web.handler.CookieHandler;
@@ -166,11 +167,20 @@ public class RouterVerticle extends AbstractVerticle {
 					CommentDTO dto = null;
 					try {
 						dto = mapper.readValue(json, CommentDTO.class);
-						io.vertx.ext.auth.User u = routingCtx.user();
-						JsonObject userObj = u.principal();
-						String userName = userObj.getString("buffer");
-						if (userName == null || userName.equals(""))
-							userName = "ash";
+						Session session = routingCtx.session();
+						String userName = session.get("user");
+						if(userName != null && !"".equalsIgnoreCase(userName.trim())){
+							System.out.println("User already logged in " + userName);
+							List<User> users = dataStore.createQuery(User.class).field("userName").equal(userName).asList();
+							if (users.size() != 0) {
+								RouterVerticle.sendNewUserInfo(users.get(0));
+							}
+						}else{
+							System.out.println("No User already logged in " + userName);
+							response.setStatusCode(404).end("Please login");
+							return;
+						}
+						
 						User user = dataStore.createQuery(User.class).field("userName").equal(userName).get();
 						dto.setUserFirst(user.getFirst());
 						dto.setUserLast(user.getLast());
