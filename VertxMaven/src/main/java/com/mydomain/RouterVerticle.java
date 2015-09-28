@@ -1,9 +1,14 @@
 package com.mydomain;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
 import org.bson.types.ObjectId;
 import org.mongodb.morphia.Datastore;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -13,6 +18,9 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mydomain.infra.ServicesFactory;
+import com.mysocial.model.Blog;
+import com.mysocial.model.Comment;
+import com.mysocial.model.CommentDTO;
 import com.mysocial.model.User;
 import com.mysocial.model.UserDTO;
 
@@ -21,10 +29,12 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -35,10 +45,12 @@ import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.ext.web.handler.UserSessionHandler;
 import io.vertx.ext.web.sstore.LocalSessionStore;
-import scala.util.parsing.json.JSON;
-import scala.util.parsing.json.JSONObject;
+import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
 
 public class RouterVerticle extends AbstractVerticle {
+	
+	private static String currentNodeId = "Node1";
+	private static int currentNodePort = 8080;
 	
 	private static List<ServerWebSocket> allConnectedSockets = new ArrayList<>();
 	@Override
@@ -82,8 +94,6 @@ public class RouterVerticle extends AbstractVerticle {
 				System.out.println("message: "+ message);
 				JsonObject json = new JsonObject(message);
 				JsonObject jsonToSend = new JsonObject();
-				
-				
 				jsonToSend.put("text", json.getString("data"));
 				jsonToSend.put("messageType", "chatMessage");
 				jsonToSend.put("sender", "okbye");
@@ -100,6 +110,11 @@ public class RouterVerticle extends AbstractVerticle {
 				allConnectedSockets.remove(serverWebSocket);
 			});
 			
+		});
+		
+		ZooKeeper zk = new ZooKeeper("10.106.248.247:2181", 12000,watchedEvent -> {
+			System.out.println(watchedEvent.getPath());
+			System.out.println(watchedEvent);
 		});
 
 		router.get("/services/users/:id").handler(new UserLoader());
@@ -125,7 +140,62 @@ public class RouterVerticle extends AbstractVerticle {
 		});
 		
 		router.get("/Services/rest/blogs").handler(new BlogList());
-        router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());     
+        //router.post("/Services/rest/blogs/:id/comments").handler(new CommentPersister());   
+		router.post("/Services/rest/blogs/:id/comments").handler(routingCtx -> {
+			String blogId = routingCtx.request().getParam("id");
+			io.vertx.ext.auth.User u = routingCtx.user();
+			try {
+				zk.create("/" + blogId, currentNodeId.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+				System.out.println("Saving RV comments");
+			} catch (Exception e) {
+				try {
+					System.out.println("Control to RV1");
+					byte[] ownerNodeAddress = zk.getData("/" + blogId, false, null);
+					vertx.eventBus().publish(new String(ownerNodeAddress), "Comment data");
+				} catch (Exception e1) {
+					e1.printStackTrace();
+				}
+			}
+			HttpServerResponse response = routingCtx.response();
+			response.putHeader("content-type", "application/json");
+			routingCtx.request().bodyHandler(new Handler<Buffer>() {
+				public void handle(Buffer buf) {
+					String json = buf.toString("UTF-8");
+					ObjectMapper mapper = new ObjectMapper();
+					Datastore dataStore = ServicesFactory.getMongoDB();
+					CommentDTO dto = null;
+					try {
+						dto = mapper.readValue(json, CommentDTO.class);
+						io.vertx.ext.auth.User u = routingCtx.user();
+						JsonObject userObj = u.principal();
+						String userName = userObj.getString("buffer");
+						if (userName == null || userName.equals(""))
+							userName = "ash";
+						User user = dataStore.createQuery(User.class).field("userName").equal(userName).get();
+						dto.setUserFirst(user.getFirst());
+						dto.setUserLast(user.getLast());
+						dto.setUserId(user.getId().toString());
+						dto.setDate(new Date().getTime());
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					Comment comment = dto.toModel();
+
+					ObjectId oid = null;
+					try {
+						oid = new ObjectId(blogId);
+					} catch (Exception e) {// Ignore format errors
+					}
+					Blog blog = dataStore.createQuery(Blog.class).field("id").equal(oid).get();
+					List<Comment> comments = blog.getComments();
+					comments.add(comment);
+					blog.setComments(comments);
+					dataStore.save(blog);
+					response.setStatusCode(204).end("Comment saved !!");
+				};
+			});
+		});
+
         router.post("/Services/rest/user/register").handler(new UserPersister());
         router.post("/Services/rest/blogs").handler(new BlogPersister());
 		router.route("/*").handler(StaticHandler.create("webroot").setCachingEnabled(false));
@@ -156,9 +226,27 @@ public class RouterVerticle extends AbstractVerticle {
 	
 	public static void main(String[] args)
     {
-        VertxOptions options = new VertxOptions().setWorkerPoolSize(10);
-        Vertx vertx = Vertx.vertx(options);
-        vertx.deployVerticle("com.mydomain.RouterVerticle");
+//        VertxOptions options = new VertxOptions().setWorkerPoolSize(10);
+//        Vertx vertx = Vertx.vertx(options);
+//        vertx.deployVerticle("com.mydomain.RouterVerticle");
+		
+		System.setProperty("vertx.disableFileCaching", "true");
+		ClusterManager cm = new HazelcastClusterManager();
+		VertxOptions opts = new VertxOptions().setClusterManager(cm);
+		Vertx.clusteredVertx(opts, res -> {
+			if (res.succeeded()) {
+				Vertx vertx = res.result();
+				vertx.deployVerticle(RouterVerticle.class.getName());
+				//Ways to communicate with other systems in the cluster
+				vertx.eventBus().consumer(currentNodeId, m->{
+					System.out.println("Cluster Message meant for Node1: "+m.body());
+				});
+			} else {
+				System.out.println("Cluster start failure");
+				// failed!
+			}
+		});
+		
     }
 
 }

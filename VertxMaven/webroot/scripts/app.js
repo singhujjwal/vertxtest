@@ -10,7 +10,8 @@
 
 	//ROUTE configurations for all views
 	app.config([ '$routeProvider', function($routeProvider) {
-		$routeProvider.when('/', {
+		$routeProvider.
+		when('/', {
 			templateUrl : 'templates/appHome.html',
 			controller : 'AppHomeController'
 		}).when('/login', {

@@ -12,6 +12,16 @@
 	<dependencies>
 		<dependency>
 			<groupId>io.vertx</groupId>
+			<artifactId>vertx-hazelcast</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<version>3.4.6</version>
+		</dependency>
+		<dependency>
+			<groupId>io.vertx</groupId>
 			<artifactId>vertx-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
