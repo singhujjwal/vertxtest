@@ -1,0 +1,7 @@
+Docker Training Slides are released under Apache License 2.0 
+Full text of license is available at 
+http://www.apache.org/licenses/LICENSE-2.0
+
+
+Docker is owned by Docker Inc. and  licensed under the Apache License, Version 2.0. 
+
